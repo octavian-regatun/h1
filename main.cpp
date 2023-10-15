@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-struct boundss {
+struct bounds {
   double min, max;
 };
 
