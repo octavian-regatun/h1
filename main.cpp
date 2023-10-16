@@ -2,18 +2,24 @@
 #include <cmath>
 #include <cstdio>
 #include <iostream>
-#include <math.h>
+#include <cmath>
 #include <random>
 #include <string>
 #include <vector>
+
+#define M_PI 3.14159265358979323846
+#define DIMENSIONS 30
+#define ITERATIONS 10000
+#define EPSILON 0.001
+#define PRECISION 5
 
 struct bounds {
   double min, max;
 };
 
-double rastrigin(std::vector<double> x) {
-  int dimensions = x.size();
+long long int length;
 
+double rastrigin(const std::vector<double>& x, int dimensions) {
   double sum = 10 * dimensions;
   for (auto i = 0; i < dimensions; i++)
     sum += x[i] * x[i] - 10 * cos(2 * M_PI * x[i]);
@@ -21,25 +27,46 @@ double rastrigin(std::vector<double> x) {
   return sum;
 }
 
-std::vector<double> gradient_rastrigin(std::vector<double> x) {
-  std::vector<double> gradients;
+#define M 10
 
-  int dimensions = x.size();
-  for (auto i = 0; i < dimensions; i++)
-    gradients.push_back(2 * x.at(i) + 20 * M_PI * sin(2 * M_PI * x.at(i)));
+double michalewicz(const std::vector<double>& x, int dimensions) {
+    double sum = 0;
+    for (auto i = 0; i < dimensions; i++)
+        sum -= sin(x[i]) * pow(sin((i + 1) * x[i] * x[i] / M_PI), 2 * M);
 
-  return gradients;
+    return sum;
+}
+
+double dejong1(const std::vector<double>& x, int dimensions)
+{
+    double sum = 0.0;
+    for (auto i = 0; i < dimensions; i++)
+        sum += x[i] * x[i];
+    return sum;
+}
+
+double schwefel(const std::vector<double>& x, int dimensions) {
+    double sum = 0.0;
+    for (int i = 0; i < dimensions; i++) {
+        sum += x[i] * sin(sqrt(abs(x[i])));
+    }
+    return 418.9829 * dimensions - sum;
+}
+
+long long int calculate_length(bounds bounds,int dimensions)
+{
+  return std::ceil(dimension * std::log2(pow(10, 5) * (rastrigin_bounds.max - rastrigin_bounds.min)));
 }
 
 std::random_device random_device;
 std::mt19937 random_generator(random_device());
 
-std::vector<char> generate_random_bits(int number_of_bytes) {
+std::vector<char> generate_random_bits() {
   std::uniform_int_distribution<int> distribution(0, 1);
 
   std::vector<char> bits;
 
-  for (int i = 0; i < number_of_bytes; i++) {
+  for (int i = 0; i < length; i++) {
     int bit = distribution(random_generator);
 
     if (bit == 0)
@@ -60,7 +87,7 @@ void flipBit(std::vector<char> &bits, int index) {
     bit = '0';
 }
 
-std::vector<std::vector<char>> generate_neighbours(std::vector<char> bits) {
+std::vector<std::vector<char>> generate_neighbours(const std::vector<char>& bits) {
   std::vector<std::vector<char>> neighbours;
 
   for (int i = 0; i < bits.size(); i++) {
@@ -72,8 +99,7 @@ std::vector<std::vector<char>> generate_neighbours(std::vector<char> bits) {
   return neighbours;
 }
 
-double bits_to_number(std::vector<char> bits, bounds bounds,
-                      int number_of_bits) {
+double bits_to_number(const std::vector<char>& bits, bounds bounds) {
   double result = 0.0;
 
   for (char bit : bits) {
@@ -81,30 +107,60 @@ double bits_to_number(std::vector<char> bits, bounds bounds,
   }
 
   return bounds.min +
-         result * (bounds.max - bounds.min) / (pow(2, number_of_bits) - 1);
+         result * (bounds.max - bounds.min) / (pow(2, length) - 1);
 }
 
-std::vector<double> calculate_gradient(std::vector<char> bits, bounds bounds,
-                                       int number_of_bits) {
-  auto number = bits_to_number(bits, bounds, number_of_bits);
-
-  return gradient_rastrigin({number});
-}
-
-double calculate_function(std::vector<char> bits, bounds bounds,
-                          int number_of_bits) {
-  auto number = bits_to_number(bits, bounds, number_of_bits);
-
-  auto function_value = rastrigin({number});
-
+double calculate_function(const std::vector<char>& bits, double (*func)(const vector<double)>&, int) , bounds bounds) {
+  double number = bits_to_number(bits, bounds, length);
+  auto function_value = func(number);
   return function_value;
+}
+
+std::vector<char> improve(const std::vector<char>& vc, double (*func)(const vector<double)>&, int), bounds bounds)
+{
+  std::vector<char> best_neighbour = vc;
+  double best_score = calculate_function(best_neighbour, func, bounds);
+  for(int i = 0; i < length, i++)
+  {
+    std::vector<char> neighbour = vc;
+    neighbour.flip(i);
+
+    double score = func(neighbour); 
+    if(score < best_score)
+    {
+      best_neighbour = neighbour;
+      best_score = score;
+    }
+  }
+  return best_neighbour;
+}
+
+void hill_climbing(std::vector<double> x, double (*func)(const std::vector<double>&, int), std::vector<double>
+    (*grad_func)(const std::vector<double>&, int), bounds bounds, int dimensions) {
+    int best = INFINITY;
+    bool local;
+    for(int t = 0; t < ITERATIONS; t++) {
+      local = false;
+      std::vector<char> = generate_random_bits(length);
+      while(!local)
+      {
+        std::vector<char> next = improve(current);
+        if(calculate_function(next, func, bounds) >= calculate_function(current,func, bounds))
+          next = current;
+        else 
+          local = true;
+      }
+
+      if(func(current) < func(best)) best = current;
+    }
+
 }
 
 int main() {
   bounds rastrigin_bounds = {-5.12, 5.12};
-
-  int number_of_bits =
-      std::log2(pow(10, 10) * (rastrigin_bounds.max - rastrigin_bounds.min));
+  bounds michalewicz_bounds = {0, M_PI};
+  bounds dejong1_bounds = {-5.12, 5.12};
+  bounds schwefel_bounds = {-500, 500};
 
   auto bits = generate_random_bits(number_of_bits);
 
