@@ -1,5 +1,4 @@
 #include <bitset>
-#include <cmath>
 #include <cstdio>
 #include <iostream>
 #include <cmath>
@@ -9,9 +8,9 @@
 
 #define M_PI 3.14159265358979323846
 #define DIMENSIONS 30
-#define ITERATIONS 100
-#define EPSILON 0.001
+#define ITERATIONS 10000
 #define PRECISION 5
+#define MAX_IMPROVEMENT_ATTEMPTS 100  
 
 struct bounds {
     double min, max;
@@ -53,20 +52,20 @@ double schwefel(const std::vector<double>& x, int dimensions) {
     return 418.9829 * dimensions - sum;
 }
 
-int calculate_length(const bounds& bnds, int dimensions)
+int calculate_length(const bounds& bounds, int dimensions)
 {
-    return static_cast<int>(std::ceil(dimensions * std::log2(pow(10, PRECISION) * (bnds.max - bnds.min))));
+    return static_cast<int>(std::ceil(dimensions * std::log2(pow(10, PRECISION) * (bounds.max - bounds.min))));
 }
 
 std::random_device random_device;
 std::mt19937 random_generator(random_device());
 
-std::vector<char> generate_random_bits(int len) {
+std::vector<char> generate_random_bits(int length) {
     std::uniform_int_distribution<int> distribution(0, 1);
 
     std::vector<char> bits;
 
-    for (int i = 0; i < len; i++) {
+    for (int i = 0; i < length; i++) {
         int bit = distribution(random_generator);
 
         if (bit == 0)
@@ -98,63 +97,74 @@ std::vector<std::vector<char>> generate_neighbours(const std::vector<char>& bits
 
     return neighbours;
 }
+std::vector<double> bits_to_number(const std::vector<char>& bits, const bounds& bounds, int length, int dimensions) {
+    std::vector<double> result;
+    int bits_per_dimension = length / dimensions;
 
-double bits_to_number(const std::vector<char>& bits, const bounds& bnds) {
-    double result = 0.0;
+    for (int d = 0; d < dimensions; d++) {
+        double sum = 0.0;
+        for (int i = 0; i < bits_per_dimension; i++) {
+            sum = sum * 2 + (bits[d * bits_per_dimension + i] - '0');
+        }
 
-    for (char bit : bits) {
-        result = result * 2 + (bit - '0');
+        double real_val = bounds.min + sum * (bounds.max - bounds.min) / (pow(2, bits_per_dimension) - 1);
+        result.push_back(real_val);
     }
 
-    return bnds.min +
-        result * (bnds.max - bnds.min) / (pow(2, length) - 1);
+    return result;
 }
 
-double calculate_function(const std::vector<char>& bits, double (*func)(const std::vector<double>&, int), const bounds& bnds) {
-    std::vector<double> values;
-    values.push_back(bits_to_number(bits, bnds));
-    return func(values, 1);
+
+double calculate_function(const std::vector<char>& bits, double (*func)(const std::vector<double>&, int), const bounds& bounds, int dimensions) {
+    std::vector<double> values = bits_to_number(bits, bounds, length, dimensions);
+    return func(values, dimensions);
 }
 
-std::vector<char> improve(const std::vector<char>& vc, double (*func)(const std::vector<double>&, int), const bounds& bnds)
-{
+
+std::vector<char> improve(const std::vector<char>& vc, double (*func)(const std::vector<double>&, int), const bounds& bounds, int dimensions) {
     std::vector<char> best_neighbour = vc;
-    double best_score = calculate_function(best_neighbour, func, bnds);
-    for (int i = 0; i < length; i++)
-    {
-        std::vector<char> neighbour = vc;
-        flipBit(neighbour, i);
+    double best_score = calculate_function(best_neighbour, func, bounds, dimensions);
+    int bits_per_dimension = length / dimensions;
 
-        double score = calculate_function(neighbour, func, bnds);
-        if (score < best_score)
-        {
+    for (int i = 0; i < bits_per_dimension; i++) { // For each bit position in a dimension
+        std::vector<char> neighbour = vc;
+        for (int d = 0; d < dimensions; d++) { // Flip the same bit for each dimension
+            flipBit(neighbour, d * bits_per_dimension + i);
+        }
+
+        double score = calculate_function(neighbour, func, bounds, dimensions);
+        if (score < best_score) {
             best_neighbour = neighbour;
             best_score = score;
         }
     }
+
     return best_neighbour;
 }
 
-std::vector<char> hill_climbing(const std::vector<char>& x, double (*func)(const std::vector<double>&, int), const bounds& bnds, int dimensions) {
+
+
+
+std::vector<char> hill_climbing(const std::vector<char>& x, double (*func)(const std::vector<double>&, int), const bounds& bounds, int dimensions) {
     std::vector<char> best = x;
-    std::vector<char> current = x;
     for (int t = 0; t < ITERATIONS; t++) {
+        std::vector<char> current = generate_random_bits(length);
+
         bool local = false;
-        while (!local)
-        {
-            std::vector<char> next = improve(current, func, bnds);
-            if (calculate_function(next, func, bnds) <= calculate_function(current, func, bnds))
-            {
+        int improvement_attempts = 0;
+
+        while (!local && improvement_attempts < MAX_IMPROVEMENT_ATTEMPTS) {
+            std::vector<char> next = improve(current, func, bounds, dimensions);
+            if (calculate_function(next, func, bounds, dimensions) <= calculate_function(current, func, bounds, dimensions)) {
                 current = next;
             }
-            else
-            {
+            else {
                 local = true;
             }
+            improvement_attempts++;
         }
 
-        if (calculate_function(current, func, bnds) < calculate_function(best, func, bnds))
-        {
+        if (calculate_function(current, func, bounds, dimensions) < calculate_function(best, func, bounds, dimensions)) {
             best = current;
         }
     }
@@ -162,14 +172,15 @@ std::vector<char> hill_climbing(const std::vector<char>& x, double (*func)(const
     return best;
 }
 
+
 int main() {
     bounds rastrigin_bounds = { -5.12, 5.12 };
     length = calculate_length(rastrigin_bounds, DIMENSIONS);
 
     auto bits = generate_random_bits(length);
 
-    auto result_bits = hill_climbing(bits, rastrigin, rastrigin_bounds, DIMENSIONS);
-    double result = calculate_function(result_bits, rastrigin, rastrigin_bounds);
+    auto result_bits = hill_climbing(bits, rastrigin, rastrigin_bounds, 5);
+    double result = calculate_function(result_bits, rastrigin, rastrigin_bounds,5);
 
     printf("Result: %f\n", result);
 
