@@ -86,7 +86,7 @@ void flipBit(std::vector<char>& bits, int index) {
         bit = '0';
 }
 
-std::vector<std::vector<char>> generate_neighbours(const std::vector<char>& bits) {
+std::vector<char> generate_neighbours(const std::vector<char>& bits) {
     std::vector<std::vector<char>> neighbours;
 
     for (int i = 0; i < length; i++) {
