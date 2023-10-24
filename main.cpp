@@ -86,17 +86,24 @@ void flipBit(std::vector<char>& bits, int index) {
         bit = '0';
 }
 
-std::vector<char> generate_neighbours(const std::vector<char>& bits) {
+std::vector<char> generate_neighbours(const std::vector<char>& bits, bounds bounds, int dimensions) {
     std::vector<char> neighbours;
+    int bits_per_dimension = length / dimensions;
 
-    for (int i = 0; i < length; i++) {
+    for (int it = 0; it < length / dimensions; it++) {
         std::vector<char> neighbour(bits.begin(), bits.end());
-        flipBit(neighbour, i);
+
+        for (int d = 0; d < dimensions; d++) 
+            for (int i = 0; i < bits_per_dimension; i++) 
+                flipBit(neighbour, i);
+        
         neighbours.insert(std::end(neighbours), std::begin(neighbour), std::end(neighbour));
     }
 
     return neighbours;
 }
+
+
 std::vector<double> bits_to_number(const std::vector<char>& bits, const bounds& bounds, int length, int dimensions) {
     std::vector<double> result;
     int bits_per_dimension = length / dimensions;
@@ -126,9 +133,9 @@ std::vector<char> improve(const std::vector<char>& vc, double (*func)(const std:
     double best_score = calculate_function(best_neighbour, func, bounds, dimensions);
     int bits_per_dimension = length / dimensions;
 
-    for (int i = 0; i < bits_per_dimension; i++) { // For each bit position in a dimension
+    for (int i = 0; i < bits_per_dimension; i++) { 
         std::vector<char> neighbour = vc;
-        for (int d = 0; d < dimensions; d++) { // Flip the same bit for each dimension
+        for (int d = 0; d < dimensions; d++) { 
             flipBit(neighbour, d * bits_per_dimension + i);
         }
 
@@ -171,6 +178,101 @@ std::vector<char> hill_climbing(const std::vector<char>& x, double (*func)(const
 
     return best;
 }
+
+std::vector<char> generate_random_neighbour(const std::vector<char>& bits, bounds& bounds, int dimensions) {
+    int bits_per_dimension = length / dimensions;
+    std::uniform_int_distribution<int> distribution1(0, bits_per_dimension - 1);
+    int i = distribution1(random_generator);
+    std::vector<char> neighbour(bits.begin(), bits.end());
+
+    for (int d = 0; d < dimensions; d++) 
+        flipBit(neighbour, d * bits_per_dimension + i);
+
+    return neighbour;
+}
+
+// std::vector<char> simulated_annealing(const std::vector<char>& x, double (*func)(const std::vector<double>&, int), const bounds& bounds, int dimensions) {
+//     double initial_temperature = 100;
+//     double cooling_rate = 0.995;
+//     const int MAX_INNER_ITERATIONS = 50;  
+//     double min_temperature = 1e-6;  
+//     std::uniform_real_distribution<double> distribution(0.0, 1.0);
+    
+//     std::vector<char> current = x;
+//     std::vector<char> best = current;
+    
+//     double current_value = calculate_function(current, func, bounds, dimensions);
+//     double best_value = current_value;
+    
+//     double T = initial_temperature;
+    
+//     while (T > min_temperature) { 
+//         int inner_iterations = 0;
+        
+//         while (inner_iterations < MAX_INNER_ITERATIONS) {  
+//             std::vector<char> next = generate_random_neighbour(current, bounds, length, dimensions);
+//             double next_value = calculate_function(next, func, bounds, dimensions);
+
+//             if (next_value < current_value || distribution(random_generator) < std::exp(-std::abs(next_value - current_value) / T)) {
+//                 current = next;
+//                 current_value = next_value;
+
+//                 if (current_value < best_value) {
+//                     best = current;
+//                     best_value = current_value;
+//                 }
+//             }
+
+//             inner_iterations++;
+//         }
+        
+//         T *= cooling_rate; 
+//     }
+    
+//     return best;
+// }
+
+std::vector<char> simulated_annealing_best_improvement(const std::vector<char>& x, double (*func)(const std::vector<double>&, int), const bounds& bounds, int dimensions) {
+    double initial_temperature = 100;
+    double cooling_rate = 0.995;
+    const int MAX_INNER_ITERATIONS = 50;  
+    double min_temperature = 1e-6;  
+    std::uniform_real_distribution<double> distribution(0.0, 1.0);
+    
+    int t = 0;
+    double T = initial_temperature;
+    std::vector<char> vc = x;  
+    double vc_value = calculate_function(vc, func, bounds, dimensions);
+    
+    while (T > min_temperature) { 
+        int inner_iterations = 0;
+        
+        while (inner_iterations < MAX_INNER_ITERATIONS) {  
+            
+            
+            std::vector<char> vn = improve(vc, func, bounds, dimensions);
+            double vn_value = calculate_function(vn, func, bounds, dimensions);
+
+            if (vn_value < vc_value || distribution(random_generator) < std::exp(-std::abs(vn_value - vc_value) / T)) {
+                vc = vn;
+                vc_value = vn_value;
+            }
+
+            inner_iterations++;
+        }
+        
+        T *= cooling_rate;  
+        t++; 
+        
+    }
+    
+    return vc;
+}
+
+
+
+            
+
 
 
 int main() {
